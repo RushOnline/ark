@@ -8,6 +8,8 @@ run:
 
 rel:
 	rebar generate
+
+rrun:
 	rel/ark/bin/ark console
 
-.PHONY: all run compile rel
+.PHONY: all run compile rel rrun
