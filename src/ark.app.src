@@ -6,6 +6,7 @@
   {applications, [
                   kernel,
                   stdlib,
+                  sasl,
                   ranch
                  ]},
   {mod, { ark_app, []}},
