@@ -8,3 +8,7 @@ ebin
 rel/ark
 .concrete/DEV_MODE
 .rebar
+
+# erlide
+/.project
+/.settings
