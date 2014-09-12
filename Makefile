@@ -1,10 +1,10 @@
-all: compile run
+all: compile
 
 compile:
 	rebar compile
 
-run:
-	erl -pa deps/ranch/ebin -pa ebin
+run: compile
+	erl -pa deps/ranch/ebin -pa ebin -s ark_app
 
 rel:
 	rebar generate
