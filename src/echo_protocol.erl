@@ -4,6 +4,8 @@
 -behaviour(gen_server).
 -behaviour(ranch_protocol).
 
+-include("telnet.hrl").
+
 %% API.
 -export([start_link/4]).
 
@@ -18,7 +20,7 @@
 
 -define(TIMEOUT, 5000).
 
--record(state, {socket, transport}).
+-record(state, {socket, transport, hbuf = <<>>, tbuf = <<>>}).
 
 %% API.
 
@@ -36,16 +38,20 @@ init(Ref, Socket, Transport, _Opts = []) ->
 	ok = proc_lib:init_ack({ok, self()}),
 	ok = ranch:accept_ack(Ref),
 	ok = Transport:setopts(Socket, [{active, once}]),
+	welcome(Transport, Socket),
 	gen_server:enter_loop(?MODULE, [],
 		#state{socket=Socket, transport=Transport},
 		?TIMEOUT).
 
 handle_info({tcp, Socket, Data}, State=#state{
-		socket=Socket, transport=Transport}) ->
-	error_logger:info_report([{message, Data}	]),
+		socket=Socket, transport=Transport, hbuf=HBuf, tbuf=TBuf}) ->
+	error_logger:info_report([{recv, Data}]),
 	Transport:setopts(Socket, [{active, once}]),
-	Transport:send(Socket, Data),
-	{noreply, State, ?TIMEOUT};
+	{ok, Echo, NewHBuf, NewTBuf} = keypress(Data, HBuf, TBuf),
+	Transport:send(Socket, Echo),
+	error_logger:info_report([{send, Echo}]),
+	% Transport:send(Socket, Data),
+	{noreply, State#state{hbuf=NewHBuf, tbuf=NewTBuf}, ?TIMEOUT};
 handle_info({tcp_closed, _Socket}, State) ->
 	{stop, normal, State};
 handle_info({tcp_error, _, Reason}, State) ->
@@ -69,3 +75,22 @@ code_change(_OldVsn, State, _Extra) ->
 	{ok, State}.
 
 %% Internal.
+
+welcome(Transport, Socket) ->
+    Transport:send(Socket, <<?IAC, ?WILL, ?ECHO>>),
+    Transport:send(Socket, <<?IAC, ?WILL, ?SUPPRESS_GO_AHEAD>>),
+    Transport:send(Socket, <<?IAC, ?DONT, ?LINE_MODE>>),
+    Transport:send(Socket, <<?IAC, ?DO, ?WINDOW_SIZE>>), % Do window size negotiation
+    Transport:send(Socket,<<?CR, ?LF>>),
+    Transport:send(Socket,<<"Welcome to Ark!", ?CR, ?LF>>),
+    Transport:send(Socket,<<"$ ">>).
+
+keypress(<<?IAC, _Rest/binary>>, HBuf, TBuf) ->
+    {ok, "", HBuf, TBuf};
+keypress(<<?CR,0>>, HBuf, TBuf) ->
+    {ok, [ <<?CR, ?LF>>, "command: ", HBuf, TBuf, <<?CR, ?LF>>, "$ " ], <<>>, <<>>};
+keypress(Data, HBuf, TBuf) ->
+	{ok, Data, append(HBuf, Data), TBuf}.
+
+append(Acc, Tail) ->
+	binary:list_to_bin([ binary:bin_to_list(Acc), binary:bin_to_list(Tail) ]).
