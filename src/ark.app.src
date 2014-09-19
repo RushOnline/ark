@@ -5,9 +5,7 @@
   {registered, []},
   {applications, [
                   kernel,
-                  stdlib,
-                  sasl,
-                  ranch
+                  stdlib
                  ]},
   {mod, { ark_app, []}},
   {env, []}

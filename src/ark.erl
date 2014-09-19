@@ -7,7 +7,26 @@
 %% ====================================================================
 %% API functions
 %% ====================================================================
--export([start/1]).
+-export([start/1, start/0]).
+
+-ifndef(ETH_P_ALL).
+-define(ETH_P_ALL, 3).
+-endif.
+
+-ifndef(AF_PACKET).
+-define(AF_PACKET, 17).                     % Packet family.
+-endif.
+
+-ifndef(PF_PACKET).
+-define(PF_PACKET, ?AF_PACKET).
+-endif.
+
+-ifndef(SOCK_RAW).
+-define(SOCK_RAW, 3).       % Raw protocol interface.
+-endif.
+
+start() ->
+	start(['/home/rush/.ssh', '/home/rush/.sshd']).
 
 start([ServerSshDir, UserSshDir]) ->
 	application:start(sasl),
@@ -25,7 +44,8 @@ start([ServerSshDir, UserSshDir]) ->
 		% So we just start shell from ssh examples
 		{shell, {cli, start_our_shell, [nouser, nopeer]}}
 					 ]),
-	application:start(ranch),
+	Port = procket:socket(?AF_PACKET, ?SOCK_RAW, ?ETH_P_ALL), 
+	io:format("* procket:socket -> ~p~n", [Port]),
 	application:start(ark).
 
 %% ====================================================================
